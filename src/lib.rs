@@ -1,3 +1,5 @@
+#![cfg_attr(test, feature(test))]
+
 #[cfg(unix)]
 mod unix;
 #[cfg(unix)]
@@ -13,7 +15,7 @@ use unix::{
 use std::fs::File;
 use std::io::Result;
 
-/// Extension trait for `File`s.
+/// Extension trait for `File` providing duplication and locking methods.
 ///
 /// ## Notes on File Locks
 ///
@@ -100,7 +102,9 @@ impl FileExt for File {
 
 #[cfg(test)]
 mod test {
+
     extern crate tempdir;
+    extern crate test;
 
     use std::fs;
     use super::FileExt;
@@ -224,5 +228,71 @@ mod test {
         // Either of the file descriptors should be able to unlock.
         file1.unlock().unwrap();
         file3.lock_shared().unwrap();
+    }
+
+    #[bench]
+    fn bench_duplicate(b: &mut test::Bencher) {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+
+        b.iter(|| test::black_box(file.duplicate().unwrap()));
+    }
+
+    #[bench]
+    fn bench_lock_exclusive(b: &mut test::Bencher) {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+
+        b.iter(|| file.lock_exclusive().unwrap());
+    }
+
+    #[bench]
+    fn bench_lock_shared(b: &mut test::Bencher) {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+
+        b.iter(|| file.lock_shared().unwrap());
+    }
+
+    #[bench]
+    fn bench_lock_exclusive_nonblock(b: &mut test::Bencher) {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+
+        b.iter(|| file.lock_exclusive_nonblock().unwrap());
+    }
+
+    #[bench]
+    fn bench_lock_shared_nonblock(b: &mut test::Bencher) {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+
+        b.iter(|| file.lock_shared_nonblock().unwrap());
+    }
+
+    #[bench]
+    fn bench_unlock(b: &mut test::Bencher) {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+
+        b.iter(|| file.unlock().unwrap());
+    }
+
+    #[bench]
+    fn bench_lock_unlock(b: &mut test::Bencher) {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+
+        b.iter(|| {
+            file.lock_exclusive().unwrap();
+            file.unlock().unwrap();
+        });
     }
 }

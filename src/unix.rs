@@ -8,7 +8,6 @@ pub fn duplicate(file: &File) -> Result<File> {
     unsafe {
         let fd = libc::dup(file.as_raw_fd());
 
-        println!("old fd: {}, new fd: {}", file.as_raw_fd(), fd);
         if fd < 0 {
             Err(Error::last_os_error())
         } else {
