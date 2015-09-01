@@ -5,6 +5,8 @@ authors = ["Dan Burkert <dan@danburkert.com>"]
 
 [dependencies]
 libc = "*"
+winapi = "*"
+kernel32-sys = "*"
 
 [dev-dependencies]
 tempdir = "*"

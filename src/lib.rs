@@ -5,6 +5,19 @@ mod unix;
 #[cfg(unix)]
 use unix::{
     duplicate,
+    lock_error,
+    lock_exclusive,
+    lock_exclusive_nonblock,
+    lock_shared,
+    lock_shared_nonblock,
+    unlock,
+};
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+use windows::{
+    duplicate,
+    lock_error,
     lock_exclusive,
     lock_exclusive_nonblock,
     lock_shared,
@@ -13,40 +26,31 @@ use unix::{
 };
 
 use std::fs::File;
-use std::io::Result;
+use std::io::{Error, Result};
 
 /// Extension trait for `File` providing duplication and locking methods.
 ///
 /// ## Notes on File Locks
 ///
-/// File locks are implemented with
+/// This API provides whole-file locks in both shared (read) and exclusive (read-write) varieties.
+///
+/// File locks are a cross-platform hazard since file locking APIs exposed by operating system
+/// kernels vary in subtle and not-so-subtle ways.
+///
+/// The API exposed by this library can be safely used across platforms as long as the following
+/// rules are followed:
+///
+///   * Multiple locks should not be created on an individual file instance at once.
+///   * Duplicated files should not be locked without great care.
+///   * Files to be locked should be opened with at least read or write permissions.
+///   * File locks may only be relied upon to be advisory.
+///
+/// See the tests in `lib.rs` for cross-platform lock behavior that may be relied upon; see the
+/// tests in `unix.rs` and `windows.rs` for examples of platform-specific behavior. File locks are
+/// implemented with
 /// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
 /// [`LockFile`](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365202(v=vs.85).aspx)
 /// on Windows.
-///
-/// File-range locks are not provided, since suitable APIs only exist for Linux and Windows. Posix
-/// file locks [`fctnl(2)`](http://man7.org/linux/man-pages/man2/fcntl.2.html)) are
-/// [broken](https://lwn.net/Articles/586904/) in multi-threaded applications, applications which
-/// call libraries that open files, and applications which use RAII-style file resource wrappers
-/// (i.e. Rust applications).
-///
-/// On Unix, the lock is advisory; given suitable permissions on a file, a process is free to
-/// ignore the lock and perform I/O on the file.
-///
-/// On Windows, the lock is mandatory.
-///
-/// On Linux, the file lock will not interact with
-/// [`fcntl(2)`](http://man7.org/linux/man-pages/man2/fcntl.2.html) file-range locks.
-///
-/// On Unix, converting a lock (shared to exclusive, or vice versa) is not guaranteed to be atomic:
-/// the existing lock is first removed, and then a new lock is established. Between these two
-/// steps, a pending lock request by another process may be granted, with the result that the
-/// conversion either blocks, or fails if a non-blocking operation was specified.
-///
-/// On Windows, the locked file must be opened with read or write permissions.
-///
-/// When a locked `File` is dropped (or the last duplicate, if the `File` has been duplicated), the
-/// lock will be unlocked, however on Windows this is not guaranteed to happen immediately.
 pub trait FileExt {
 
     /// Returns a duplicate instance of the file.
@@ -67,12 +71,12 @@ pub trait FileExt {
     /// Locks the file for exclusive usage, blocking if the file is currently locked.
     fn lock_exclusive(&self) -> Result<()>;
 
-    /// Locks the file for shared usage, or returns `ErrorKind::WouldBlock` if the file is currently
-    /// locked exclusively.
+    /// Locks the file for shared usage, or returns a an error if the file is currently locked
+    /// (see `lock_contended_error`).
     fn lock_shared_nonblock(&self) -> Result<()>;
 
-    /// Locks the file for shared usage, or returns `ErrorKind::WouldBlock` if the file is currently
-    /// locked.
+    /// Locks the file for shared usage, or returns a an error if the file is currently locked
+    /// (see `lock_contended_error`).
     fn lock_exclusive_nonblock(&self) -> Result<()>;
 
     /// Unlocks the file.
@@ -100,6 +104,11 @@ impl FileExt for File {
     }
 }
 
+/// Returns the error that a call to a nonblocking lock method on a contended file will return.
+pub fn lock_contended_error() -> Error {
+    lock_error()
+}
+
 #[cfg(test)]
 mod test {
 
@@ -107,15 +116,16 @@ mod test {
     extern crate test;
 
     use std::fs;
-    use super::FileExt;
-    use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
+    use super::{lock_contended_error, FileExt};
+    use std::io::{Read, Seek, SeekFrom, Write};
 
     /// Tests file duplication.
     #[test]
     fn duplicate() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let mut file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let mut file1 =
+            fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
         let mut file2 = file1.duplicate().unwrap();
 
         // Write into the first file and then drop it.
@@ -139,16 +149,18 @@ mod test {
     fn lock_shared() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().create(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().create(true).open(&path).unwrap();
-        let file3 = fs::OpenOptions::new().create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().create(true).read(true).open(&path).unwrap();
+        let file2 = fs::OpenOptions::new().create(true).read(true).open(&path).unwrap();
+        let file3 = fs::OpenOptions::new().create(true).read(true).open(&path).unwrap();
 
         // Concurrent shared access is OK, but not shared and exclusive.
         file1.lock_shared().unwrap();
         file2.lock_shared().unwrap();
-        assert_eq!(file3.lock_exclusive_nonblock().unwrap_err().kind(), ErrorKind::WouldBlock);
+        assert_eq!(file3.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+                   lock_contended_error().raw_os_error());
         file1.unlock().unwrap();
-        assert_eq!(file3.lock_exclusive_nonblock().unwrap_err().kind(), ErrorKind::WouldBlock);
+        assert_eq!(file3.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+                   lock_contended_error().raw_os_error());
 
         // Once all shared file locks are dropped, an exclusive lock may be created;
         file2.unlock().unwrap();
@@ -160,135 +172,52 @@ mod test {
     fn lock_exclusive() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().create(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file2 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
 
         // No other access is possible once an exclusive lock is created.
         file1.lock_exclusive().unwrap();
-        assert_eq!(file2.lock_exclusive_nonblock().unwrap_err().kind(), ErrorKind::WouldBlock);
-        assert_eq!(file2.lock_shared_nonblock().unwrap_err().kind(), ErrorKind::WouldBlock);
+        assert_eq!(file2.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+                   lock_contended_error().raw_os_error());
+        assert_eq!(file2.lock_shared_nonblock().unwrap_err().raw_os_error(),
+                   lock_contended_error().raw_os_error());
 
         // Once the exclusive lock is dropped, the second file is able to create a lock.
         file1.unlock().unwrap();
         file2.lock_exclusive().unwrap();
     }
 
-    /// Tests that opening locks on a file descriptor will replace any existing locks on the file.
-    #[test]
-    fn lock_replace() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
-        let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().create(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().create(true).open(&path).unwrap();
-
-        // Creating a shared lock will drop an exclusive lock.
-        file1.lock_exclusive().unwrap();
-        file1.lock_shared().unwrap();
-        file2.lock_shared().unwrap();
-
-        // Attempting to replace a shared lock with an exclusive lock will fail with multiple lock
-        // holders, and remove the original shared lock.
-        assert_eq!(file2.lock_exclusive_nonblock().unwrap_err().kind(), ErrorKind::WouldBlock);
-        file1.lock_shared().unwrap();
-    }
-
-    /// Tests that locks are shared among duplicate file descriptors.
-    #[test]
-    fn lock_duplicate() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
-        let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().create(true).open(&path).unwrap();
-        let file2 = file1.duplicate().unwrap();
-        let file3 = fs::OpenOptions::new().create(true).open(&path).unwrap();
-
-        // Create a lock through fd1, then replace it through fd2.
-        file1.lock_shared().unwrap();
-        file2.lock_exclusive().unwrap();
-        assert_eq!(file3.lock_shared_nonblock().unwrap_err().kind(), ErrorKind::WouldBlock);
-
-        // Either of the file descriptors should be able to unlock.
-        file1.unlock().unwrap();
-        file3.lock_shared().unwrap();
-    }
-
-    /// Tests that a lock is cleaned up after the last duplicated file descriptor is closed.
+    /// Tests that a lock is released after the file that owns it is dropped.
     #[test]
     fn lock_cleanup() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().create(true).open(&path).unwrap();
-        let file2 = file1.duplicate().unwrap();
-        let file3 = fs::OpenOptions::new().create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file2 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
 
-        // Create a lock through fd1, then replace it through fd2.
-        file1.lock_shared().unwrap();
-        file2.lock_exclusive().unwrap();
-        assert_eq!(file3.lock_shared_nonblock().unwrap_err().kind(), ErrorKind::WouldBlock);
+        file1.lock_exclusive().unwrap();
+        assert_eq!(file2.lock_shared_nonblock().unwrap_err().raw_os_error(),
+                   lock_contended_error().raw_os_error());
 
-        // Either of the file descriptors should be able to unlock.
-        file1.unlock().unwrap();
-        file3.lock_shared().unwrap();
+        // Drop file1; the lock should be released.
+        drop(file1);
+        file2.lock_shared().unwrap();
     }
 
     #[bench]
     fn bench_duplicate(b: &mut test::Bencher) {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let file = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
 
         b.iter(|| test::black_box(file.duplicate().unwrap()));
-    }
-
-    #[bench]
-    fn bench_lock_exclusive(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
-        let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-
-        b.iter(|| file.lock_exclusive().unwrap());
-    }
-
-    #[bench]
-    fn bench_lock_shared(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
-        let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-
-        b.iter(|| file.lock_shared().unwrap());
-    }
-
-    #[bench]
-    fn bench_lock_exclusive_nonblock(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
-        let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-
-        b.iter(|| file.lock_exclusive_nonblock().unwrap());
-    }
-
-    #[bench]
-    fn bench_lock_shared_nonblock(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
-        let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-
-        b.iter(|| file.lock_shared_nonblock().unwrap());
-    }
-
-    #[bench]
-    fn bench_unlock(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
-        let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-
-        b.iter(|| file.unlock().unwrap());
     }
 
     #[bench]
     fn bench_lock_unlock(b: &mut test::Bencher) {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let file = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
 
         b.iter(|| {
             file.lock_exclusive().unwrap();
