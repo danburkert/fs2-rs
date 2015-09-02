@@ -2,6 +2,16 @@
 name = "fs2"
 version = "0.1.0"
 authors = ["Dan Burkert <dan@danburkert.com>"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/danburkert/fs2-rs"
+documentation = "https://danburkert.github.io/fs2-rs/fs2/index.html"
+description = "Cross-platform file locks and file duplication."
+keywords = ["file", "file-system", "lock", "duplicate", "flock"]
+exclude = [
+  ".gitignore",
+  ".travis.yml",
+  ".appveyor.yml",
+]
 
 [dependencies]
 libc = "*"

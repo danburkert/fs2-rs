@@ -1,4 +1,5 @@
 #![cfg_attr(test, feature(test))]
+#![deny(warnings)]
 
 #[cfg(unix)]
 mod unix;
@@ -32,15 +33,16 @@ use std::io::{Error, Result};
 ///
 /// ## Notes on File Locks
 ///
-/// This API provides whole-file locks in both shared (read) and exclusive (read-write) varieties.
+/// This library provides whole-file locks in both shared (read) and exclusive (read-write)
+/// varieties.
 ///
-/// File locks are a cross-platform hazard since file locking APIs exposed by operating system
+/// File locks are a cross-platform hazard since the file lock APIs exposed by operating system
 /// kernels vary in subtle and not-so-subtle ways.
 ///
 /// The API exposed by this library can be safely used across platforms as long as the following
 /// rules are followed:
 ///
-///   * Multiple locks should not be created on an individual file instance at once.
+///   * Multiple locks should not be created on an individual `File` instance concurrently.
 ///   * Duplicated files should not be locked without great care.
 ///   * Files to be locked should be opened with at least read or write permissions.
 ///   * File locks may only be relied upon to be advisory.
