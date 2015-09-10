@@ -12,9 +12,9 @@ requires Rust stable 1.1 or greater.
 
 - [x] file descriptor duplication.
 - [x] file locks.
-- [ ] file (pre)allocation.
-- [ ] file allocation information.
-- [ ] filesystem usage information.
+- [x] file (pre)allocation.
+- [x] file allocation information.
+- [x] filesystem usage information.
 
 ## Platforms
 
@@ -30,6 +30,15 @@ requires Rust stable 1.1 or greater.
   * `i686-pc-windows-msvc`
   * `x86_64-pc-windows-gnu`
   * `i686-pc-windows-gnu`
+
+## Benchmarks
+
+Simple benchmarks are provided for the methods provided. Many of these
+benchmarks use files in a temporary directory. On many modern Linux distros the
+default temporary directory, `/tmp`, is mounted on a tempfs filesystem, which
+will have different performance characteristics than a disk-backed filesystem.
+The temporary directory is configurable at runtime through the environment (see
+[`env::temp_dir`](https://doc.rust-lang.org/stable/std/env/fn.temp_dir.html)).
 
 ## License
 

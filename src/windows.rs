@@ -3,9 +3,11 @@ extern crate winapi;
 
 use std::fs::File;
 use std::io::{Error, Result};
-use std::os::windows::io::{AsRawHandle, FromRawHandle};
-use std::ptr;
 use std::mem;
+use std::os::windows::ffi::OsStrExt;
+use std::os::windows::io::{AsRawHandle, FromRawHandle};
+use std::path::Path;
+use std::ptr;
 
 pub fn duplicate(file: &File) -> Result<File> {
     unsafe {
@@ -23,6 +25,46 @@ pub fn duplicate(file: &File) -> Result<File> {
         } else {
             Ok(File::from_raw_handle(handle))
         }
+    }
+}
+
+pub fn allocated_size(file: &File) -> Result<u64> {
+    unsafe {
+        let mut info: winapi::FILE_STANDARD_INFO = mem::zeroed();
+
+        let ret = kernel32::GetFileInformationByHandleEx(
+            file.as_raw_handle(),
+            winapi::FileStandardInfo,
+            &mut info as *mut _ as *mut _,
+            mem::size_of::<winapi::FILE_STANDARD_INFO>() as winapi::DWORD);
+
+        if ret == 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok(info.AllocationSize as u64)
+        }
+    }
+}
+
+pub fn allocate(file: &File, len: u64) -> Result<()> {
+    if try!(allocated_size(file)) < len {
+        unsafe {
+            let mut info: winapi::FILE_ALLOCATION_INFO = mem::zeroed();
+            info.AllocationSize = len as i64;
+            let ret = kernel32::SetFileInformationByHandle(
+                file.as_raw_handle(),
+                winapi::FileAllocationInfo,
+                &mut info as *mut _ as *mut _,
+                mem::size_of::<winapi::FILE_ALLOCATION_INFO>() as winapi::DWORD);
+            if ret == 0 {
+                return Err(Error::last_os_error());
+            }
+        }
+    }
+    if try!(file.metadata()).len() < len {
+        file.set_len(len)
+    } else {
+        Ok(())
     }
 }
 
@@ -45,12 +87,7 @@ pub fn try_lock_exclusive(file: &File) -> Result<()> {
 pub fn unlock(file: &File) -> Result<()> {
     unsafe {
         let ret = kernel32::UnlockFile(file.as_raw_handle(), 0, 0, !0, !0);
-
-        if ret == 0 {
-            Err(Error::last_os_error())
-        } else {
-            Ok(())
-        }
+        if ret == 0 { Err(Error::last_os_error()) } else { Ok(()) }
     }
 }
 
@@ -62,13 +99,72 @@ fn lock_file(file: &File, flags: winapi::DWORD) -> Result<()> {
     unsafe {
         let mut overlapped = mem::zeroed();
         let ret = kernel32::LockFileEx(file.as_raw_handle(), flags, 0, !0, !0, &mut overlapped);
+        if ret == 0 { Err(Error::last_os_error()) } else { Ok(()) }
+    }
+}
 
+fn volume_path<P>(path: P, volume_path: &mut [u16]) -> Result<()> where P: AsRef<Path> {
+    let path_utf8: Vec<u16> = path.as_ref().as_os_str().encode_wide().chain(Some(0)).collect();
+    unsafe {
+        let ret = kernel32::GetVolumePathNameW(path_utf8.as_ptr(),
+                                               volume_path.as_mut_ptr(),
+                                               volume_path.len() as winapi::DWORD);
+        if ret == 0 { Err(Error::last_os_error()) } else { Ok(())
+        }
+    }
+}
+
+fn get_disk_free_space<P>(path: P) -> Result<(u64, u64, u64, u64)> where P: AsRef<Path> {
+    let root_path: &mut [u16] = &mut [0; 261];
+    try!(volume_path(path, root_path));
+    unsafe {
+
+        let mut sectors_per_cluster = 0;
+        let mut bytes_per_sector = 0;
+        let mut number_of_free_clusters = 0;
+        let mut total_number_of_clusters = 0;
+        let ret = kernel32::GetDiskFreeSpaceW(root_path.as_ptr(),
+                                              &mut sectors_per_cluster,
+                                              &mut bytes_per_sector,
+                                              &mut number_of_free_clusters,
+                                              &mut total_number_of_clusters);
         if ret == 0 {
             Err(Error::last_os_error())
         } else {
-            Ok(())
+            Ok((sectors_per_cluster as u64,
+                bytes_per_sector as u64,
+                number_of_free_clusters as u64,
+                total_number_of_clusters as u64))
         }
     }
+}
+
+pub fn free_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
+    available_space(path)
+}
+
+pub fn available_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
+    get_disk_free_space(path).map(|(sectors_per_cluster,
+                                    bytes_per_sector,
+                                    number_of_free_clusters,
+                                    _)| {
+        number_of_free_clusters * sectors_per_cluster * bytes_per_sector
+    })
+}
+
+pub fn total_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
+    get_disk_free_space(path).map(|(sectors_per_cluster,
+                                    bytes_per_sector,
+                                    _,
+                                    total_number_of_clusters)| {
+        total_number_of_clusters * sectors_per_cluster * bytes_per_sector
+    })
+}
+
+pub fn allocation_granularity<P>(path: P) -> Result<u64> where P: AsRef<Path> {
+    get_disk_free_space(path).map(|(sectors_per_cluster, bytes_per_sector, _, _)| {
+        sectors_per_cluster * bytes_per_sector
+    })
 }
 
 #[cfg(test)]
