@@ -34,11 +34,11 @@ pub fn lock_exclusive(file: &File) -> Result<()> {
     lock_file(file, winapi::LOCKFILE_EXCLUSIVE_LOCK)
 }
 
-pub fn lock_shared_nonblock(file: &File) -> Result<()> {
+pub fn try_lock_shared(file: &File) -> Result<()> {
     lock_file(file, winapi::LOCKFILE_FAIL_IMMEDIATELY)
 }
 
-pub fn lock_exclusive_nonblock(file: &File) -> Result<()> {
+pub fn try_lock_exclusive(file: &File) -> Result<()> {
     lock_file(file, winapi::LOCKFILE_EXCLUSIVE_LOCK | winapi::LOCKFILE_FAIL_IMMEDIATELY)
 }
 
@@ -101,7 +101,7 @@ mod test {
 
         // Locking the original file handle will block the duplicate file handle from opening a lock.
         file1.lock_shared().unwrap();
-        assert_eq!(file2.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file2.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
 
         // Once the original file handle is unlocked, the duplicate handle can proceed with a lock.
@@ -119,13 +119,13 @@ mod test {
 
         // Multiple exclusive locks fails.
         file.lock_exclusive().unwrap();
-        assert_eq!(file.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
         file.unlock().unwrap();
 
         // Shared then Exclusive locks fails.
         file.lock_shared().unwrap();
-        assert_eq!(file.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
     }
 
@@ -141,17 +141,17 @@ mod test {
         file.lock_exclusive().unwrap();
         file.lock_shared().unwrap();
         file.lock_shared().unwrap();
-        assert_eq!(file.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
 
         // Pop one of the shared locks and try again.
         file.unlock().unwrap();
-        assert_eq!(file.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
 
         // Pop the second shared lock and try again.
         file.unlock().unwrap();
-        assert_eq!(file.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
 
         // Pop the exclusive lock and finally succeed.
@@ -169,7 +169,7 @@ mod test {
 
         // Open two shared locks on the file, and then try and fail to open an exclusive lock.
         file1.lock_shared().unwrap();
-        assert_eq!(file2.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file2.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
 
         drop(file1);
@@ -190,7 +190,7 @@ mod test {
         drop(file1);
 
         // Attempting to create a lock on the file with the duplicate handle will fail.
-        assert_eq!(file2.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file2.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
     }
 }

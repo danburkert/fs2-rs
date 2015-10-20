@@ -24,11 +24,11 @@ pub fn lock_exclusive(file: &File) -> Result<()> {
     flock(file, libc::LOCK_EX)
 }
 
-pub fn lock_shared_nonblock(file: &File) -> Result<()> {
+pub fn try_lock_shared(file: &File) -> Result<()> {
     flock(file, libc::LOCK_SH | libc::LOCK_NB)
 }
 
-pub fn lock_exclusive_nonblock(file: &File) -> Result<()> {
+pub fn try_lock_exclusive(file: &File) -> Result<()> {
     flock(file, libc::LOCK_EX | libc::LOCK_NB)
 }
 
@@ -80,7 +80,7 @@ mod test {
 
         // Attempting to replace a shared lock with an exclusive lock will fail with multiple lock
         // holders, and remove the original shared lock.
-        assert_eq!(file2.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file2.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
         file1.lock_shared().unwrap();
     }
@@ -97,7 +97,7 @@ mod test {
         // Create a lock through fd1, then replace it through fd2.
         file1.lock_shared().unwrap();
         file2.lock_exclusive().unwrap();
-        assert_eq!(file3.lock_shared_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file3.try_lock_shared().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
 
         // Either of the file descriptors should be able to unlock.

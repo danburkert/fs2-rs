@@ -8,9 +8,9 @@ use unix::{
     duplicate,
     lock_error,
     lock_exclusive,
-    lock_exclusive_nonblock,
     lock_shared,
-    lock_shared_nonblock,
+    try_lock_exclusive,
+    try_lock_shared,
     unlock,
 };
 #[cfg(windows)]
@@ -20,9 +20,9 @@ use windows::{
     duplicate,
     lock_error,
     lock_exclusive,
-    lock_exclusive_nonblock,
     lock_shared,
-    lock_shared_nonblock,
+    try_lock_exclusive,
+    try_lock_shared,
     unlock,
 };
 
@@ -75,11 +75,11 @@ pub trait FileExt {
 
     /// Locks the file for shared usage, or returns a an error if the file is currently locked
     /// (see `lock_contended_error`).
-    fn lock_shared_nonblock(&self) -> Result<()>;
+    fn try_lock_shared(&self) -> Result<()>;
 
     /// Locks the file for shared usage, or returns a an error if the file is currently locked
     /// (see `lock_contended_error`).
-    fn lock_exclusive_nonblock(&self) -> Result<()>;
+    fn try_lock_exclusive(&self) -> Result<()>;
 
     /// Unlocks the file.
     fn unlock(&self) -> Result<()>;
@@ -95,18 +95,18 @@ impl FileExt for File {
     fn lock_exclusive(&self) -> Result<()> {
         lock_exclusive(self)
     }
-    fn lock_shared_nonblock(&self) -> Result<()> {
-        lock_shared_nonblock(self)
+    fn try_lock_shared(&self) -> Result<()> {
+        try_lock_shared(self)
     }
-    fn lock_exclusive_nonblock(&self) -> Result<()> {
-        lock_exclusive_nonblock(self)
+    fn try_lock_exclusive(&self) -> Result<()> {
+        try_lock_exclusive(self)
     }
     fn unlock(&self) -> Result<()> {
         unlock(self)
     }
 }
 
-/// Returns the error that a call to a nonblocking lock method on a contended file will return.
+/// Returns the error that a call to a try lock method on a contended file will return.
 pub fn lock_contended_error() -> Error {
     lock_error()
 }
@@ -158,10 +158,10 @@ mod test {
         // Concurrent shared access is OK, but not shared and exclusive.
         file1.lock_shared().unwrap();
         file2.lock_shared().unwrap();
-        assert_eq!(file3.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file3.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
         file1.unlock().unwrap();
-        assert_eq!(file3.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file3.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
 
         // Once all shared file locks are dropped, an exclusive lock may be created;
@@ -179,9 +179,9 @@ mod test {
 
         // No other access is possible once an exclusive lock is created.
         file1.lock_exclusive().unwrap();
-        assert_eq!(file2.lock_exclusive_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file2.try_lock_exclusive().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
-        assert_eq!(file2.lock_shared_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file2.try_lock_shared().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
 
         // Once the exclusive lock is dropped, the second file is able to create a lock.
@@ -198,7 +198,7 @@ mod test {
         let file2 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
 
         file1.lock_exclusive().unwrap();
-        assert_eq!(file2.lock_shared_nonblock().unwrap_err().raw_os_error(),
+        assert_eq!(file2.try_lock_shared().unwrap_err().raw_os_error(),
                    lock_contended_error().raw_os_error());
 
         // Drop file1; the lock should be released.
