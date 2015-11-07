@@ -1,24 +1,35 @@
 language: rust
-addons:
-  apt:
-    packages:
-    - libcurl4-openssl-dev
-    - libelf-dev
-    - libdw-dev
 
 rust:
+- 1.1.0
 - nightly
 
-before_script:
-- pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
-
 script:
-- travis-cargo build && travis-cargo test && travis-cargo --only nightly doc
+  - cargo build --verbose
 
-after_success:
-- travis-cargo --only nightly doc-upload
+  - if [ "$TRAVIS_RUST_VERSION" = "nightly" ]; then
+      cargo test;
+    fi
+
+  - if [ "$ARCH" = "x86_64" ] && \
+       [ "$TRAVIS_RUST_VERSION" = "nightly" ] && \
+       [ "$TRAVIS_OS_NAME" = "linux" ] && \
+       [ "$TRAVIS_PULL_REQUEST" = "false" ] && \
+       [ "$TRAVIS_BRANCH" = "master" ]; then
+      cargo doc;
+      pip install ghp-import --user $USER;
+      $HOME/.local/bin/ghp-import -n target/doc;
+      git push -qf https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages;
+    fi
+
+os:
+  - linux
+  - osx
 
 env:
+  matrix:
+    - ARCH=x86_64
+    - ARCH=i686
   global:
   - TRAVIS_CARGO_NIGHTLY_FEATURE=""
   - secure: toeLvfBSzblN5GfKn9YAswkc2oAkwtPDNUir31TxiZ6g6+7TegmOupnbuTLOjr7Y79OffhCXnP4G+9j/apZpjox4tAmYYo620rb09zrpxjU5xxEkmgtf2efmt0Pk5xMMBMfL4iR0HBI1ImbX6lctMhHOjelOvvzxZB+Brxz4ymASmcovbNQpnKEqiNRPQRy7255o43Ktdnb8k6I7uQ7gkjb7Ie6NxTGzChUELZAsrCo5TsN5JEwOlFDRDVGSHVQHXvl1uw3H7PdK8uQFT+7w/wc16l7GGcpYMMJ7guyOScc0eyEnTZIgPn4yEpRWcBUFJ/31Jid9ZnvKCvfp1PbuKcNhRsubMJZfG7K/F47Yq8a4RTHfrdIRR4m8GjjPykelkCbBZIp0DHQa+HCJ7fElBBdauqv5k67UA3jVSkx64sGfm27G7Glr1MC3o9I3kLWl53giqDkwQrgdahHtVhsr66R5eETsQJHB/XxovklLclfCBONaFnzRcgL+7dYC1CMQq+ViEV94ZAL57b68VFOEExCRl02V1wzRzCZHdJbaP6YkU/S9XhWJ/W4oQMk7cstC77w2wTrvKSZyBoMqC9nXpDv10hTCQUapR2/FrKWeshEI5XnlWuzYDho+4V/EoceDHTmHFGFWYTlinCCFbzl/vxJsPPNrYmFF9nUFNx5/6UI=
