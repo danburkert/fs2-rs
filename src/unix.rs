@@ -41,7 +41,7 @@ pub fn lock_error() -> Error {
 }
 
 fn flock(file: &File, flag: libc::c_int) -> Result<()> {
-    let ret = unsafe { libc::funcs::bsd44::flock(file.as_raw_fd(), flag) };
+    let ret = unsafe { libc::flock(file.as_raw_fd(), flag) };
     if ret < 0 { Err(Error::last_os_error()) } else { Ok(()) }
 }
 
