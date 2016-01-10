@@ -114,7 +114,8 @@ fn statvfs<P>(path: P) -> Result<libc::statvfs> where P: AsRef<Path> {
 
     unsafe {
         let mut stat: libc::statvfs = mem::zeroed();
-        if libc::statvfs(cstr.as_ptr(), &mut stat) == -1 {
+        // danburkert/fs2-rs#1: cast is necessary for platforms where c_char != u8.
+        if libc::statvfs(cstr.as_ptr() as *const _, &mut stat) == -1 {
             Err(Error::last_os_error())
         } else {
             Ok(stat)
