@@ -7,7 +7,6 @@ use std::mem;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::io::{AsRawFd, FromRawFd};
-use std::os::unix::raw::off_t;
 use std::path::Path;
 
 pub fn duplicate(file: &File) -> Result<File> {
@@ -60,7 +59,7 @@ pub fn allocated_size(file: &File) -> Result<u64> {
           target_os = "android",
           target_os = "nacl"))]
 pub fn allocate(file: &File, len: u64) -> Result<()> {
-    let ret = unsafe { libc::posix_fallocate(file.as_raw_fd(), 0, len as off_t) };
+    let ret = unsafe { libc::posix_fallocate(file.as_raw_fd(), 0, len as libc::off_t) };
     if ret == 0 { Ok(()) } else { Err(Error::last_os_error()) }
 }
 
@@ -73,7 +72,7 @@ pub fn allocate(file: &File, len: u64) -> Result<()> {
             fst_flags: libc::F_ALLOCATECONTIG,
             fst_posmode: libc::F_PEOFPOSMODE,
             fst_offset: 0,
-            fst_length: len as off_t,
+            fst_length: len as libc::off_t,
             fst_bytesalloc: 0,
         };
 
