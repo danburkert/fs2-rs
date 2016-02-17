@@ -180,8 +180,8 @@ mod test {
     fn lock_replace() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().create(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
+        let file2 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
 
         // Creating a shared lock will drop an exclusive lock.
         file1.lock_exclusive().unwrap();
@@ -200,9 +200,9 @@ mod test {
     fn lock_duplicate() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
         let file2 = file1.duplicate().unwrap();
-        let file3 = fs::OpenOptions::new().create(true).open(&path).unwrap();
+        let file3 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
 
         // Create a lock through fd1, then replace it through fd2.
         file1.lock_shared().unwrap();

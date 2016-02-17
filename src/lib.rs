@@ -185,9 +185,9 @@ mod test {
     fn lock_shared() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().create(true).read(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().create(true).read(true).open(&path).unwrap();
-        let file3 = fs::OpenOptions::new().create(true).read(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let file3 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
         // Concurrent shared access is OK, but not shared and exclusive.
         file1.lock_shared().unwrap();
@@ -208,8 +208,8 @@ mod test {
     fn lock_exclusive() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
         // No other access is possible once an exclusive lock is created.
         file1.lock_exclusive().unwrap();
@@ -228,8 +228,8 @@ mod test {
     fn lock_cleanup() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
         file1.lock_exclusive().unwrap();
         assert_eq!(file2.try_lock_shared().unwrap_err().kind(),
@@ -360,7 +360,7 @@ mod test {
     fn bench_duplicate(b: &mut test::Bencher) {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
         b.iter(|| test::black_box(file.duplicate().unwrap()));
     }
@@ -370,7 +370,7 @@ mod test {
     fn bench_lock_unlock(b: &mut test::Bencher) {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
         b.iter(|| {
             file.lock_exclusive().unwrap();
