@@ -192,7 +192,7 @@ mod test {
     fn lock_duplicate_handle_independence() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
         let file2 = file1.duplicate().unwrap();
 
         // Locking the original file handle will block the duplicate file handle from opening a lock.
@@ -211,7 +211,7 @@ mod test {
     fn lock_non_reentrant() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
         // Multiple exclusive locks fails.
         file.lock_exclusive().unwrap();
@@ -231,7 +231,7 @@ mod test {
     fn lock_layering() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
         // Open two shared locks on the file, and then try and fail to open an exclusive lock.
         file.lock_exclusive().unwrap();
@@ -260,8 +260,8 @@ mod test {
     fn lock_layering_cleanup() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
         // Open two shared locks on the file, and then try and fail to open an exclusive lock.
         file1.lock_shared().unwrap();
@@ -278,7 +278,7 @@ mod test {
     fn lock_duplicate_cleanup() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
         let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().read(true).create(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
         let file2 = file1.duplicate().unwrap();
 
         // Open a lock on the original handle, then close it.
