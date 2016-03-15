@@ -95,7 +95,8 @@ pub fn allocate(file: &File, len: u64) -> Result<()> {
 }
 
 #[cfg(any(target_os = "openbsd",
-          target_os = "netbsd"))]
+          target_os = "netbsd",
+          target_os = "dragonfly"))]
 pub fn allocate(file: &File, len: u64) -> Result<()> {
     // No file allocation API available, just set the length if necessary.
     if len > try!(file.metadata()).len() as u64 {
