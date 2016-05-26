@@ -15,7 +15,7 @@ use std::fs::File;
 use std::io::{Error, Result};
 use std::path::Path;
 
-/// Extension trait for `File` providing duplication and locking methods.
+/// Extension trait for `std::fs::File` which provides duplication and locking methods.
 ///
 /// ## Notes on File Locks
 ///
