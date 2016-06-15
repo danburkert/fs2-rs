@@ -1,6 +1,6 @@
 [package]
 name = "fs2"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Dan Burkert <dan@danburkert.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/danburkert/fs2-rs"
