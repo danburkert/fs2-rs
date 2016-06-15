@@ -14,7 +14,7 @@ requires Rust stable 1.1 or greater.
 - [x] file locks.
 - [x] file (pre)allocation.
 - [x] file allocation information.
-- [x] filesystem usage information.
+- [x] filesystem space usage information.
 
 ## Platforms
 
