@@ -1,7 +1,7 @@
 # fs2
 
 Extended utilities for working with files and filesystems in Rust. `fs2`
-requires Rust stable 1.1 or greater.
+requires Rust stable 1.8 or greater.
 
 [Documentation](https://danburkert.github.io/fs2-rs/fs2/index.html)
 
