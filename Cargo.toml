@@ -4,7 +4,7 @@ version = "0.2.5"
 authors = ["Dan Burkert <dan@danburkert.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/danburkert/fs2-rs"
-documentation = "https://danburkert.github.io/fs2-rs/fs2/index.html"
+documentation = "https://docs.rs/fs2"
 description = "Cross-platform file locks and file duplication."
 keywords = ["file", "file-system", "lock", "duplicate", "flock"]
 
