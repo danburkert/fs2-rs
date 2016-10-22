@@ -8,8 +8,10 @@ documentation = "https://danburkert.github.io/fs2-rs/fs2/index.html"
 description = "Cross-platform file locks and file duplication."
 keywords = ["file", "file-system", "lock", "duplicate", "flock"]
 
-[dependencies]
-libc = "0.2.2"
+[target.'cfg(unix)'.dependencies]
+libc = "^0.2.2"
+
+[target.'cfg(windows)'.dependencies]
 winapi = "0.2"
 kernel32-sys = "0.2"
 
