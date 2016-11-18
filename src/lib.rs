@@ -121,21 +121,21 @@ pub fn lock_contended_error() -> Error {
 /// FsStats contains some common stats about a file system.
 pub struct FsStats {
     free_space: u64,
-	available_space: u64,
-	total_space: u64,
-	allocation_granularity: u64,
+    available_space: u64,
+    total_space: u64,
+    allocation_granularity: u64,
 }
 
 impl FsStats {
     /// Get the stats of the file system containing the provided path.
     pub fn statvfs<P>(path: P) -> Result<FsStats> where P: AsRef<Path> {
-	    sys::statvfs(path)
+        sys::statvfs(path)
     }
-	
+
     /// Returns the number of free bytes in the file system containing the provided
     /// path.
     pub fn free_space(&self) -> u64 {
-	    self.free_space
+        self.free_space
     }
 
     /// Returns the available space in bytes to non-priveleged users in the file
