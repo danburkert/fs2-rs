@@ -9,6 +9,8 @@ use std::os::windows::io::{AsRawHandle, FromRawHandle};
 use std::path::Path;
 use std::ptr;
 
+use FsStats;
+
 pub fn duplicate(file: &File) -> Result<File> {
     unsafe {
         let mut handle = ptr::null_mut();
@@ -114,7 +116,7 @@ fn volume_path<P>(path: P, volume_path: &mut [u16]) -> Result<()> where P: AsRef
     }
 }
 
-fn get_disk_free_space<P>(path: P) -> Result<(u64, u64, u64, u64)> where P: AsRef<Path> {
+pub fn statvfs<P>(path: P) -> Result<FsStats> where P: AsRef<Path> {
     let root_path: &mut [u16] = &mut [0; 261];
     try!(volume_path(path, root_path));
     unsafe {
@@ -131,40 +133,17 @@ fn get_disk_free_space<P>(path: P) -> Result<(u64, u64, u64, u64)> where P: AsRe
         if ret == 0 {
             Err(Error::last_os_error())
         } else {
-            Ok((sectors_per_cluster as u64,
-                bytes_per_sector as u64,
-                number_of_free_clusters as u64,
-                total_number_of_clusters as u64))
+            let bytes_per_cluster = sectors_per_cluster as u64 * bytes_per_sector as u64;
+            let free_space = bytes_per_cluster * number_of_free_clusters as u64;
+            let total_space = bytes_per_cluster * total_number_of_clusters as u64;
+            Ok(FsStats {
+                free_space: free_space,
+                available_space: free_space,
+                total_space: total_space,
+                allocation_granularity: bytes_per_cluster,
+            })
         }
     }
-}
-
-pub fn free_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    available_space(path)
-}
-
-pub fn available_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    get_disk_free_space(path).map(|(sectors_per_cluster,
-                                    bytes_per_sector,
-                                    number_of_free_clusters,
-                                    _)| {
-        number_of_free_clusters * sectors_per_cluster * bytes_per_sector
-    })
-}
-
-pub fn total_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    get_disk_free_space(path).map(|(sectors_per_cluster,
-                                    bytes_per_sector,
-                                    _,
-                                    total_number_of_clusters)| {
-        total_number_of_clusters * sectors_per_cluster * bytes_per_sector
-    })
-}
-
-pub fn allocation_granularity<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    get_disk_free_space(path).map(|(sectors_per_cluster, bytes_per_sector, _, _)| {
-        sectors_per_cluster * bytes_per_sector
-    })
 }
 
 #[cfg(test)]

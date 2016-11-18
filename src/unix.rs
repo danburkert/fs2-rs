@@ -9,6 +9,8 @@ use std::os::unix::fs::MetadataExt;
 use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::path::Path;
 
+use FsStats;
+
 pub fn duplicate(file: &File) -> Result<File> {
     unsafe {
         let fd = libc::dup(file.as_raw_fd());
@@ -107,7 +109,7 @@ pub fn allocate(file: &File, len: u64) -> Result<()> {
     }
 }
 
-fn statvfs<P>(path: P) -> Result<libc::statvfs> where P: AsRef<Path> {
+pub fn statvfs<P>(path: P) -> Result<FsStats> where P: AsRef<Path> {
     let cstr = match CString::new(path.as_ref().as_os_str().as_bytes()) {
         Ok(cstr) => cstr,
         Err(..) => return Err(Error::new(ErrorKind::InvalidInput, "path contained a null")),
@@ -116,28 +118,17 @@ fn statvfs<P>(path: P) -> Result<libc::statvfs> where P: AsRef<Path> {
     unsafe {
         let mut stat: libc::statvfs = mem::zeroed();
         // danburkert/fs2-rs#1: cast is necessary for platforms where c_char != u8.
-        if libc::statvfs(cstr.as_ptr() as *const _, &mut stat) == -1 {
+        if libc::statvfs(cstr.as_ptr() as *const _, &mut stat) != 0 {
             Err(Error::last_os_error())
         } else {
-            Ok(stat)
+            Ok(FsStats {
+                free_space: stat.f_frsize as u64 * stat.f_bfree as u64,
+                available_space: stat.f_frsize as u64 * stat.f_bavail as u64,
+                total_space: stat.f_frsize as u64 * stat.f_blocks as u64,
+                allocation_granularity: stat.f_frsize,
+            })
         }
     }
-}
-
-pub fn free_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    statvfs(path).map(|statvfs| statvfs.f_frsize as u64 * statvfs.f_bfree as u64)
-}
-
-pub fn available_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    statvfs(path).map(|statvfs| statvfs.f_frsize as u64 * statvfs.f_bavail as u64)
-}
-
-pub fn total_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    statvfs(path).map(|statvfs| statvfs.f_frsize as u64 * statvfs.f_blocks as u64)
-}
-
-pub fn allocation_granularity<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    statvfs(path).map(|statvfs| statvfs.f_frsize as u64)
 }
 
 #[cfg(test)]
