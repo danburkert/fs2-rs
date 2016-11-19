@@ -127,11 +127,6 @@ pub struct FsStats {
 }
 
 impl FsStats {
-    /// Get the stats of the file system containing the provided path.
-    pub fn statvfs<P>(path: P) -> Result<FsStats> where P: AsRef<Path> {
-        sys::statvfs(path)
-    }
-
     /// Returns the number of free bytes in the file system containing the provided
     /// path.
     pub fn free_space(&self) -> u64 {
@@ -160,22 +155,27 @@ impl FsStats {
     }
 }
 
+/// Get the stats of the file system containing the provided path.
+pub fn statvfs<P>(path: P) -> Result<FsStats> where P: AsRef<Path> {
+    sys::statvfs(path.as_ref())
+}
+
 /// Returns the number of free bytes in the file system containing the provided
 /// path.
 pub fn free_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    FsStats::statvfs(path).map(|stat| stat.free_space)
+    statvfs(path).map(|stat| stat.free_space)
 }
 
 /// Returns the available space in bytes to non-priveleged users in the file
 /// system containing the provided path.
 pub fn available_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    FsStats::statvfs(path).map(|stat| stat.available_space)
+    statvfs(path).map(|stat| stat.available_space)
 }
 
 /// Returns the total space in bytes in the file system containing the provided
 /// path.
 pub fn total_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    FsStats::statvfs(path).map(|stat| stat.total_space)
+    statvfs(path).map(|stat| stat.total_space)
 }
 
 /// Returns the filesystem's disk space allocation granularity in bytes.
@@ -184,7 +184,7 @@ pub fn total_space<P>(path: P) -> Result<u64> where P: AsRef<Path> {
 /// On Posix, this is equivalent to the filesystem's block size.
 /// On Windows, this is equivalent to the filesystem's cluster size.
 pub fn allocation_granularity<P>(path: P) -> Result<u64> where P: AsRef<Path> {
-    FsStats::statvfs(path).map(|stat| stat.allocation_granularity)
+    statvfs(path).map(|stat| stat.allocation_granularity)
 }
 
 #[cfg(test)]

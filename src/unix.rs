@@ -109,8 +109,8 @@ pub fn allocate(file: &File, len: u64) -> Result<()> {
     }
 }
 
-pub fn statvfs<P>(path: P) -> Result<FsStats> where P: AsRef<Path> {
-    let cstr = match CString::new(path.as_ref().as_os_str().as_bytes()) {
+pub fn statvfs(path: &Path) -> Result<FsStats> {
+    let cstr = match CString::new(path.as_os_str().as_bytes()) {
         Ok(cstr) => cstr,
         Err(..) => return Err(Error::new(ErrorKind::InvalidInput, "path contained a null")),
     };

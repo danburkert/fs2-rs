@@ -105,8 +105,8 @@ fn lock_file(file: &File, flags: winapi::DWORD) -> Result<()> {
     }
 }
 
-fn volume_path<P>(path: P, volume_path: &mut [u16]) -> Result<()> where P: AsRef<Path> {
-    let path_utf8: Vec<u16> = path.as_ref().as_os_str().encode_wide().chain(Some(0)).collect();
+fn volume_path(path: &Path, volume_path: &mut [u16]) -> Result<()> {
+    let path_utf8: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
     unsafe {
         let ret = kernel32::GetVolumePathNameW(path_utf8.as_ptr(),
                                                volume_path.as_mut_ptr(),
@@ -116,7 +116,7 @@ fn volume_path<P>(path: P, volume_path: &mut [u16]) -> Result<()> where P: AsRef
     }
 }
 
-pub fn statvfs<P>(path: P) -> Result<FsStats> where P: AsRef<Path> {
+pub fn statvfs(path: &Path) -> Result<FsStats> {
     let root_path: &mut [u16] = &mut [0; 261];
     try!(volume_path(path, root_path));
     unsafe {
