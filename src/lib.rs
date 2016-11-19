@@ -119,6 +119,7 @@ pub fn lock_contended_error() -> Error {
 }
 
 /// FsStats contains some common stats about a file system.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FsStats {
     free_space: u64,
     available_space: u64,
