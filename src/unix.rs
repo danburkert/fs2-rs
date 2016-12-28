@@ -125,7 +125,7 @@ pub fn statvfs(path: &Path) -> Result<FsStats> {
                 free_space: stat.f_frsize as u64 * stat.f_bfree as u64,
                 available_space: stat.f_frsize as u64 * stat.f_bavail as u64,
                 total_space: stat.f_frsize as u64 * stat.f_blocks as u64,
-                allocation_granularity: stat.f_frsize,
+                allocation_granularity: stat.f_frsize as u64,
             })
         }
     }
