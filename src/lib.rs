@@ -48,6 +48,8 @@ pub trait FileExt {
     /// The returned file will share the same file position as the original
     /// file.
     ///
+    /// If using rustc version 1.9 or later, prefer using `File::try_clone` to this.
+    ///
     /// # Notes
     ///
     /// This is implemented with
