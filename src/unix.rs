@@ -85,7 +85,7 @@ fn solaris_flock(file: &File, flag: libc::c_int) -> Result<()> {
 }
 
 fn flock(file: &File, flag: libc::c_int) -> Result<()> {
-    weak!(fn flock(libc::c_int, libc::c_int) -> libc::c_int);
+    let flock = ::weak::WeakFlock::new();
 
     match flock.get() {
         Some(f) => {
