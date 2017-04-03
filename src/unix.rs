@@ -48,6 +48,7 @@ pub fn lock_error() -> Error {
 }
 
 // Simulate flock() using fcntl(); primarily for Oracle Solaris.
+#[cfg(target_os = "solaris")]
 fn solaris_flock(file: &File, flag: libc::c_int) -> Result<()> {
     let mut fl = libc::flock {
         l_whence: 0,
