@@ -49,7 +49,7 @@ pub fn lock_error() -> Error {
 
 // Simulate flock() using fcntl(); primarily for Oracle Solaris.
 #[cfg(target_os = "solaris")]
-fn solaris_flock(file: &File, flag: libc::c_int) -> Result<()> {
+fn fcntl_flock(file: &File, flag: libc::c_int) -> Result<()> {
     let mut fl = libc::flock {
         l_whence: 0,
         l_start: 0,
@@ -85,6 +85,11 @@ fn solaris_flock(file: &File, flag: libc::c_int) -> Result<()> {
     }
 }
 
+#[cfg(not(target_os = "solaris"))]
+fn fcntl_flock(file: &File, flag: libc::c_int) -> Result<()> {
+    panic!("Only Solaris should need fcntl-based flock emulation!")
+}
+
 fn flock(file: &File, flag: libc::c_int) -> Result<()> {
     let flock = ::weak::WeakFlock::new();
 
@@ -93,7 +98,7 @@ fn flock(file: &File, flag: libc::c_int) -> Result<()> {
             let ret = unsafe { f(file.as_raw_fd(), flag) };
             if ret < 0 { Err(Error::last_os_error()) } else { Ok(()) }
         },
-        None => solaris_flock(file, flag),
+        None => fcntl_flock(file, flag),
     }
 }
 
