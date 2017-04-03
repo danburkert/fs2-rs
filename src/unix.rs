@@ -86,7 +86,7 @@ fn fcntl_flock(file: &File, flag: libc::c_int) -> Result<()> {
 }
 
 #[cfg(not(target_os = "solaris"))]
-fn fcntl_flock(file: &File, flag: libc::c_int) -> Result<()> {
+fn fcntl_flock(_: &File, _: libc::c_int) -> Result<()> {
     panic!("Only Solaris should need fcntl-based flock emulation!")
 }
 
