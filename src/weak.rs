@@ -20,7 +20,7 @@ use std::marker;
 use std::mem;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-type FlockFunc = unsafe extern fn(libc::c_int, libc::c_int) -> libc::c_int;
+pub type FlockFunc = unsafe extern fn(libc::c_int, libc::c_int) -> libc::c_int;
 
 pub struct WeakFlock {
     name: &'static str,
