@@ -2,6 +2,10 @@
 #![deny(warnings)]
 
 #[cfg(unix)]
+#[macro_use]
+mod weak;
+
+#[cfg(unix)]
 mod unix;
 #[cfg(unix)]
 use unix as sys;

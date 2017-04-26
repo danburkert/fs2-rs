@@ -47,9 +47,59 @@ pub fn lock_error() -> Error {
     Error::from_raw_os_error(libc::EWOULDBLOCK)
 }
 
+// Simulate flock() using fcntl(); primarily for Oracle Solaris.
+#[cfg(target_os = "solaris")]
+fn fcntl_flock(file: &File, flag: libc::c_int) -> Result<()> {
+    let mut fl = libc::flock {
+        l_whence: 0,
+        l_start: 0,
+        l_len: 0,
+        l_type: 0,
+        l_pad: [0; 4],
+        l_pid: 0,
+        l_sysid: 0,
+    };
+
+    // In non-blocking mode, use F_SETLK for cmd, F_SETLKW otherwise, and don't forget to clear
+    // LOCK_NB.
+    let (cmd, operation) = match flag & libc::LOCK_NB {
+        0 => (libc::F_SETLKW, flag),
+        _ => (libc::F_SETLK, flag & !libc::LOCK_NB),
+    };
+
+    match operation {
+        libc::LOCK_SH => fl.l_type |= libc::F_RDLCK,
+        libc::LOCK_EX => fl.l_type |= libc::F_WRLCK,
+        libc::LOCK_UN => fl.l_type |= libc::F_UNLCK,
+        _ => return Err(Error::from_raw_os_error(libc::EINVAL)),
+    }
+
+    let ret = unsafe { libc::fcntl(file.as_raw_fd(), cmd, &fl) };
+    match ret {
+        // Translate EACCES to EWOULDBLOCK
+        -1 => match Error::last_os_error().raw_os_error() {
+            Some(libc::EACCES) => return Err(lock_error()),
+            _ => return Err(Error::last_os_error())
+        },
+        _ => Ok(())
+    }
+}
+
+#[cfg(not(target_os = "solaris"))]
+fn fcntl_flock(_: &File, _: libc::c_int) -> Result<()> {
+    panic!("Only Solaris should need fcntl-based flock emulation!")
+}
+
 fn flock(file: &File, flag: libc::c_int) -> Result<()> {
-    let ret = unsafe { libc::flock(file.as_raw_fd(), flag) };
-    if ret < 0 { Err(Error::last_os_error()) } else { Ok(()) }
+    let flock = ::weak::WeakFlock::new();
+
+    match flock.get() {
+        Some(f) => {
+            let ret = unsafe { f(file.as_raw_fd(), flag) };
+            if ret < 0 { Err(Error::last_os_error()) } else { Ok(()) }
+        },
+        None => fcntl_flock(file, flag),
+    }
 }
 
 pub fn allocated_size(file: &File) -> Result<u64> {
