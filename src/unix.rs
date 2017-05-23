@@ -47,14 +47,14 @@ pub fn lock_error() -> Error {
     Error::from_raw_os_error(libc::EWOULDBLOCK)
 }
 
-#[cfg(HAVE_FLOCK)]
+#[cfg(not(target_os = "solaris"))]
 fn flock(file: &File, flag: libc::c_int) -> Result<()> {
     let ret = unsafe { libc::flock(file.as_raw_fd(), flag) };
     if ret < 0 { Err(Error::last_os_error()) } else { Ok(()) }
 }
 
 // Simulate flock() using fcntl(); primarily for Oracle Solaris.
-#[cfg(not(HAVE_FLOCK))]
+#[cfg(target_os = "solaris")]
 fn flock(file: &File, flag: libc::c_int) -> Result<()> {
     let mut fl = libc::flock {
         l_whence: 0,

@@ -7,7 +7,6 @@ repository = "https://github.com/danburkert/fs2-rs"
 documentation = "https://docs.rs/fs2"
 description = "Cross-platform file locks and file duplication."
 keywords = ["file", "file-system", "lock", "duplicate", "flock"]
-build = true
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.2"
@@ -18,6 +17,3 @@ kernel32-sys = "0.2"
 
 [dev-dependencies]
 tempdir = "0.3"
-
-[build-dependencies]
-gcc = "*"
