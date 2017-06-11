@@ -53,7 +53,7 @@ fn flock(file: &File, flag: libc::c_int) -> Result<()> {
     if ret < 0 { Err(Error::last_os_error()) } else { Ok(()) }
 }
 
-// Simulate flock() using fcntl(); primarily for Oracle Solaris.
+/// Simulate flock() using fcntl(); primarily for Oracle Solaris.
 #[cfg(target_os = "solaris")]
 fn flock(file: &File, flag: libc::c_int) -> Result<()> {
     let mut fl = libc::flock {
