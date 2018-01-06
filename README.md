@@ -5,8 +5,8 @@ requires Rust stable 1.8 or greater.
 
 [![Build Status](https://travis-ci.org/danburkert/fs2-rs.svg?branch=master)](https://travis-ci.org/danburkert/fs2-rs)
 [![Windows Build status](https://ci.appveyor.com/api/projects/status/iuvjv1aaaml0rntt/branch/master?svg=true)](https://ci.appveyor.com/project/danburkert/fs2-rs/branch/master)
-[![Documentation](https://docs.rs/fs2/badge.svg)](https://docs.rs/memmap)
-[![Crate](https://img.shields.io/crates/v/fs2.svg)](https://crates.io/crates/memmap)
+[![Documentation](https://docs.rs/fs2/badge.svg)](https://docs.rs/fs2)
+[![Crate](https://img.shields.io/crates/v/fs2.svg)](https://crates.io/crates/fs2)
 
 ## Features
 
