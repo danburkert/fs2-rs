@@ -1,6 +1,6 @@
 //! Extended utilities for working with files and filesystems in Rust.
 
-#![doc(html_root_url = "https://docs.rs/fs2/0.4.2")]
+#![doc(html_root_url = "https://docs.rs/fs2/0.4.3")]
 
 #![cfg_attr(test, feature(test))]
 
