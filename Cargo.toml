@@ -12,8 +12,7 @@ keywords = ["file", "file-system", "lock", "duplicate", "flock"]
 libc = "0.2.30"
 
 [target.'cfg(windows)'.dependencies]
-winapi = "0.2"
-kernel32-sys = "0.2"
+winapi = { version = "0.3", features = ["handleapi", "processthreadsapi", "winerror", "fileapi", "winbase", "std"] }
 
 [dev-dependencies]
 tempdir = "0.3"
