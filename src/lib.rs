@@ -1,6 +1,9 @@
 #![cfg_attr(test, feature(test))]
 #![deny(warnings)]
 
+#[cfg(windows)]
+extern crate winapi;
+
 #[cfg(unix)]
 mod unix;
 #[cfg(unix)]
