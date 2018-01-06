@@ -1,5 +1,8 @@
+//! Extended utilities for working with files and filesystems in Rust.
+
+#![doc(html_root_url = "https://docs.rs/fs2/0.4.2")]
+
 #![cfg_attr(test, feature(test))]
-#![deny(warnings)]
 
 #[cfg(windows)]
 extern crate winapi;
