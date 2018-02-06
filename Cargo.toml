@@ -13,6 +13,9 @@ keywords = ["file", "file-system", "lock", "duplicate", "flock"]
 travis-ci = { repository = "danburkert/fs2-rs" }
 appveyor = { repository = "danburkert/fs2-rs" }
 
+[target.'cfg(target_os = "redox")'.dependencies]
+redox_syscall = "0.1"
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.30"
 
