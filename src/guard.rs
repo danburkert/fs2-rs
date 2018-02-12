@@ -8,15 +8,16 @@ use std::ops::{Deref,DerefMut};
 /// When this structure is dropped (falls out of scope), the file will be unlocked.
 ///
 /// This structure is created by the [`lock_shared_guard`], [`lock_exclusive_guard`], [`try_lock_shared_guard`], and [`try_lock_exclusive_guard`] methods on [`FileExt`].
-
+///
 /// # Examples
 ///
 /// ```
 /// use fs2::FileExt;
+/// use fs2::FileLock;
 /// use std::io::Write;
 ///
-/// fn exclusive_access(file: std::fs::File) {
-///     if let Ok(mut locked) = file.lock_exclusive_guard() {
+/// fn exclusive_access(file: &mut std::fs::File) {
+///     if let Ok(mut locked) = file.try_lock_exclusive_guard() {
 ///
 ///         // exclusive operation, synchronized among processes
 ///         write!(*locked, "hello").unwrap();
@@ -26,51 +27,44 @@ use std::ops::{Deref,DerefMut};
 /// }
 /// ```
 ///
-/// ```compile_fail
-/// use fs2::FileExt;
-///
-/// fn uh_oh(file: std::fs::File) {
-///     let locked = file.lock_exclusive_guard().unwrap();
-///
-///     // compile error:
-///     // cannot close file while lock guard is open
-///     drop(file);
-/// }
-/// ```
-///
 /// [`lock_shared_guard`]: trait.FileExt.html#tymethod.lock_shared_guard
 /// [`lock_exclusive_guard`]: trait.FileExt.html#tymethod.lock_exclusive_guard
 /// [`try_lock_shared_guard`]: trait.FileExt.html#tymethod.try_lock_shared_guard
 /// [`try_lock_exclusive_guard`]: trait.FileExt.html#tymethod.try_lock_exclusive_guard
 /// [`FileExt`]: trait.FileExt.html
 #[derive(Debug)]
-pub struct FileLockGuard<T: FileExt> {
-    file: T
+pub struct FileLockGuard<'a, T: FileExt + 'a> {
+    file: &'a mut T,
 }
 
-impl<T: FileExt> FileLockGuard<T> {
-    fn new(file: T) -> FileLockGuard<T> {
+impl<'a, T: FileExt + 'a> FileLockGuard<'a, T> {
+
+    /// Create a lock guard. The file must already be locked.
+    fn new(file: &mut T) -> FileLockGuard<T> {
         FileLockGuard {
             file
         }
     }
 }
 
-impl<T: FileExt> Deref for FileLockGuard<T> {
+impl<'a, T: FileExt + 'a> Deref for FileLockGuard<'a, T> {
     type Target = T;
 
+    /// Access locked file.
     fn deref(&self) -> &T {
-        &self.file
+        self.file
     }
 }
 
-impl<T: FileExt> DerefMut for FileLockGuard<T> {
+impl<'a, T: FileExt + 'a> DerefMut for FileLockGuard<'a, T> {
+
+    /// Mutably access locked file.
     fn deref_mut(&mut self) -> &mut T {
-        &mut self.file
+        self.file
     }
 }
 
-impl<T: FileExt> Drop for FileLockGuard<T> {
+impl<'a, T: FileExt + 'a> Drop for FileLockGuard<'a, T> {
 
     /// Unlock the locked file.
     ///
@@ -83,50 +77,100 @@ impl<T: FileExt> Drop for FileLockGuard<T> {
     }
 }
 
-#[derive(Debug)]
-pub struct FileLockError<T> {
-    pub err: io::Error,
-    pub file: T
+pub type FileLockResult<'a, T> = Result<FileLockGuard<'a, T>, io::Error>;
+
+pub trait FileLock: FileExt {
+
+    /// [`lock_shared`](#tymethod.lock_shared),
+    /// then unlock when the returned `FileLockGuard` exits scope.
+    fn lock_shared_guard(&mut self) -> FileLockResult<Self>;
+
+    /// [`lock_exclusive`](#tymethod.lock_exclusive),
+    /// then unlock when the returned `FileLockGuard` exits scope.
+    fn lock_exclusive_guard(&mut self) -> FileLockResult<Self>;
+
+    /// [`try_lock_shared`](#tymethod.try_lock_shared),
+    /// then unlock when the returned `FileLockGuard` exits scope.
+    fn try_lock_shared_guard(&mut self) -> FileLockResult<Self>;
+
+    /// [`try_lock_exclusive`](#tymethod.try_lock_exclusive),
+    /// then unlock when the returned `FileLockGuard` exits scope.
+    fn try_lock_exclusive_guard(&mut self) -> FileLockResult<Self>;
 }
 
-pub type FileLockResult<T> = Result<FileLockGuard<T>, FileLockError<T>>;
+impl<T: FileExt> FileLock for T {
 
-pub struct FileLock<T: FileExt> {
-    file: T
+    fn lock_shared_guard(&mut self) -> FileLockResult<Self> {
+        self.lock_shared()?;
+        Ok(FileLockGuard::new(self))
+    }
+
+    fn lock_exclusive_guard(&mut self) -> FileLockResult<Self> {
+        self.lock_exclusive()?;
+        Ok(FileLockGuard::new(self))
+    }
+
+    fn try_lock_shared_guard(&mut self) -> FileLockResult<Self> {
+        self.try_lock_shared()?;
+        Ok(FileLockGuard::new(self))
+    }
+
+    fn try_lock_exclusive_guard(&mut self) -> FileLockResult<Self> {
+        self.try_lock_exclusive()?;
+        Ok(FileLockGuard::new(self))
+    }
 }
 
-impl<T: FileExt> FileLock<T> {
-    pub fn new(file: T) -> FileLock<T> {
-        FileLock {
-            file
-        }
+
+#[cfg(test)]
+mod test {
+
+    extern crate tempdir;
+
+    use std::fs;
+    use super::*;
+    use super::super::lock_contended_error;
+
+    /// Tests guarded shared file lock operations.
+    #[test]
+    fn lock_shared_guard() {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let mut file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let mut file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let mut file3 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+
+        // Concurrent shared access is OK, but not shared and exclusive.
+        let guard1 = file1.lock_shared_guard().unwrap();
+        let guard2 = file2.lock_shared_guard().unwrap();
+        assert_eq!(file3.try_lock_exclusive_guard().unwrap_err().kind(),
+                   lock_contended_error().kind());
+        drop(guard1);
+        assert_eq!(file3.try_lock_exclusive_guard().unwrap_err().kind(),
+                   lock_contended_error().kind());
+
+        // Once all shared file locks are dropped, an exclusive lock may be created;
+        drop(guard2);
+        file3.lock_exclusive_guard().unwrap();
     }
 
-    pub fn lock_shared(self) -> FileLockResult<T> {
-        let res = self.file.lock_shared();
-        self.make_result(res)
-    }
+    /// Tests guarded exclusive file lock operations.
+    #[test]
+    fn lock_exclusive_guard() {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let mut file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
+        let mut file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
-    pub fn lock_exclusive(self) -> FileLockResult<T> {
-        let res = self.file.lock_exclusive();
-        self.make_result(res)
-    }
+        // No other access is possible once an exclusive lock is created.
+        let guard1 = file1.lock_exclusive_guard().unwrap();
+        assert_eq!(file2.try_lock_exclusive_guard().unwrap_err().kind(),
+                   lock_contended_error().kind());
+        assert_eq!(file2.try_lock_shared_guard().unwrap_err().kind(),
+                   lock_contended_error().kind());
 
-    pub fn try_lock_shared(self) -> FileLockResult<T> {
-        let res = self.file.try_lock_shared();
-        self.make_result(res)
-    }
-
-    pub fn try_lock_exclusive(self) -> FileLockResult<T> {
-        let res = self.file.try_lock_exclusive();
-        self.make_result(res)
-    }
-
-    fn make_result(self, res: io::Result<()>) -> FileLockResult<T> {
-        let file = self.file;
-        match res {
-            Ok(()) => Ok(FileLockGuard::new(file)),
-            Err(err) => Err(FileLockError{err, file})
-        }
+        // Once the exclusive lock is dropped, the second file is able to create a lock.
+        drop(guard1);
+        file2.lock_exclusive_guard().unwrap();
     }
 }

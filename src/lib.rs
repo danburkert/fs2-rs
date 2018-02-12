@@ -18,10 +18,9 @@ mod windows;
 use windows as sys;
 
 mod guard;
-use guard::FileLock;
 pub use guard:: {
+    FileLock,
     FileLockResult,
-    FileLockError,
     FileLockGuard
 };
 
@@ -55,7 +54,7 @@ use std::path::Path;
 /// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
 /// [`LockFile`](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365202(v=vs.85).aspx)
 /// on Windows.
-pub trait FileExt: Sized {
+pub trait FileExt {
 
     /// Returns a duplicate instance of the file.
     ///
@@ -99,30 +98,6 @@ pub trait FileExt: Sized {
 
     /// Unlocks the file.
     fn unlock(&self) -> Result<()>;
-
-    /// [`lock_shared`](#tymethod.lock_shared),
-    /// then unlock when the returned `FileLockGuard` exits scope.
-    fn lock_shared_guard(self) -> FileLockResult<Self> {
-        FileLock::new(self).lock_shared()
-    }
-
-    /// [`lock_exclusive`](#tymethod.lock_exclusive),
-    /// then unlock when the returned `FileLockGuard` exits scope.
-    fn lock_exclusive_guard(self) -> FileLockResult<Self> {
-        FileLock::new(self).lock_exclusive()
-    }
-
-    /// [`try_lock_shared`](#tymethod.try_lock_shared),
-    /// then unlock when the returned `FileLockGuard` exits scope.
-    fn try_lock_shared_guard(self) -> FileLockResult<Self> {
-        FileLock::new(self).try_lock_shared()
-    }
-
-    /// [`try_lock_exclusive`](#tymethod.try_lock_exclusive),
-    /// then unlock when the returned `FileLockGuard` exits scope.
-    fn try_lock_exclusive_guard(self) -> FileLockResult<Self> {
-        FileLock::new(self).try_lock_exclusive()
-    }
 }
 
 impl FileExt for File {
@@ -322,62 +297,6 @@ mod test {
         drop(file1);
         file2.lock_shared().unwrap();
     }
-
-    /// Tests guarded shared file lock operations.
-    #[test]
-    fn lock_shared_guard() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
-        let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-        let file3 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-
-        // Concurrent shared access is OK, but not shared and exclusive.
-        let guard1 = file1.lock_shared_guard().unwrap();
-        let guard2 = file2.lock_shared_guard().unwrap();
-        let FileLockError{err, file} = file3.try_lock_exclusive_guard().unwrap_err();
-        let file3 = file;
-        assert_eq!(err.kind(),
-                   lock_contended_error().kind());
-        drop(guard1);
-        let FileLockError{err, file} = file3.try_lock_exclusive_guard().unwrap_err();
-        let file3 = file;
-        assert_eq!(err.kind(),
-                   lock_contended_error().kind());
-
-        // Once all shared file locks are dropped, an exclusive lock may be created;
-        drop(guard2);
-        let _guard3 = file3.lock_exclusive_guard().unwrap();
-    }
-
-    /// Tests guarded exclusive file lock operations.
-    #[test]
-    fn lock_exclusive_guard() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
-        let path = tempdir.path().join("fs2");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
-
-        // No other access is possible once an exclusive lock is created.
-        let guard1 = file1.lock_exclusive_guard().unwrap();
-        let FileLockError{err, file} = file2.try_lock_exclusive_guard().unwrap_err();
-        let file2 = file;
-        assert_eq!(err.kind(),
-                   lock_contended_error().kind());
-        let FileLockError{err, file} = file2.try_lock_exclusive_guard().unwrap_err();
-        let file2 = file;
-        assert_eq!(err.kind(),
-                   lock_contended_error().kind());
-
-        // Once the exclusive lock is dropped, the second file is able to create a lock.
-        drop(guard1);
-        let _guard2 = file2.lock_exclusive_guard().unwrap();
-    }
-
-    // NOTE: the guarded equivalent of lock_cleanup() is a compilation failure,
-    // since FileLockGuard prevents the file from being dropped.
-    //
-    // It is documented as a 'compile_fail' test on FileLockGuard.
 
     /// Tests file allocation.
     #[test]
