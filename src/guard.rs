@@ -33,11 +33,11 @@ use std::ops::{Deref,DerefMut};
 /// [`try_lock_exclusive_guard`]: trait.FileExt.html#tymethod.try_lock_exclusive_guard
 /// [`FileExt`]: trait.FileExt.html
 #[derive(Debug)]
-pub struct FileLockGuard<'a, T: FileExt + 'a> {
+pub struct FileLockGuard<'a, T: FileExt + ?Sized + 'a> {
     file: &'a mut T,
 }
 
-impl<'a, T: FileExt + 'a> FileLockGuard<'a, T> {
+impl<'a, T: FileExt + ?Sized + 'a> FileLockGuard<'a, T> {
 
     /// Create a lock guard. The file must already be locked.
     fn new(file: &mut T) -> FileLockGuard<T> {
@@ -47,7 +47,7 @@ impl<'a, T: FileExt + 'a> FileLockGuard<'a, T> {
     }
 }
 
-impl<'a, T: FileExt + 'a> Deref for FileLockGuard<'a, T> {
+impl<'a, T: FileExt + ?Sized + 'a> Deref for FileLockGuard<'a, T> {
     type Target = T;
 
     /// Access locked file.
@@ -56,7 +56,7 @@ impl<'a, T: FileExt + 'a> Deref for FileLockGuard<'a, T> {
     }
 }
 
-impl<'a, T: FileExt + 'a> DerefMut for FileLockGuard<'a, T> {
+impl<'a, T: FileExt + ?Sized + 'a> DerefMut for FileLockGuard<'a, T> {
 
     /// Mutably access locked file.
     fn deref_mut(&mut self) -> &mut T {
@@ -64,7 +64,7 @@ impl<'a, T: FileExt + 'a> DerefMut for FileLockGuard<'a, T> {
     }
 }
 
-impl<'a, T: FileExt + 'a> Drop for FileLockGuard<'a, T> {
+impl<'a, T: FileExt + ?Sized + 'a> Drop for FileLockGuard<'a, T> {
 
     /// Unlock the locked file.
     ///
