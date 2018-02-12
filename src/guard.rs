@@ -1,7 +1,6 @@
 use super::FileExt;
 
-use std::result::Result;
-use std::io;
+use std::io::Result;
 use std::ops::{Deref,DerefMut};
 
 /// An RAII implementation of a "scoped lock" of a file.
@@ -59,8 +58,6 @@ impl<'a, T: FileExt + ?Sized + 'a> Drop for FileLockGuard<'a, T> {
     }
 }
 
-pub type FileLockResult<'a, T> = Result<FileLockGuard<'a, T>, io::Error>;
-
 /// Extension trait for `FileExt` which provides guarded locking.
 ///
 /// # Examples
@@ -82,44 +79,40 @@ pub type FileLockResult<'a, T> = Result<FileLockGuard<'a, T>, io::Error>;
 pub trait FileLock: FileExt {
 
     /// [`lock_shared`](trait.FileExt.html#tymethod.lock_shared),
-    /// then unlock when the returned [`FileLockGuard`](struct.FileLockGuard.html)
-    /// exits scope.
-    fn lock_shared_guard(&mut self) -> FileLockResult<Self>;
+    /// then unlock when the returned `FileLockGuard` exits scope.
+    fn lock_shared_guard(&mut self) -> Result<FileLockGuard<Self>>;
 
     /// [`lock_exclusive`](trait.FileExt.html#tymethod.lock_exclusive),
-    /// then unlock when the returned [`FileLockGuard`](struct.FileLockGuard.html)
-    /// exits scope.
-    fn lock_exclusive_guard(&mut self) -> FileLockResult<Self>;
+    /// then unlock when the returned `FileLockGuard` exits scope.
+    fn lock_exclusive_guard(&mut self) -> Result<FileLockGuard<Self>>;
 
     /// [`try_lock_shared`](trait.FileExt.html#tymethod.try_lock_shared),
-    /// then unlock when the returned [`FileLockGuard`](struct.FileLockGuard.html)
-    /// exits scope.
-    fn try_lock_shared_guard(&mut self) -> FileLockResult<Self>;
+    /// then unlock when the returned `FileLockGuard` exits scope.
+    fn try_lock_shared_guard(&mut self) -> Result<FileLockGuard<Self>>;
 
     /// [`try_lock_exclusive`](trait.FileExt.html#tymethod.try_lock_exclusive),
-    /// then unlock when the returned [`FileLockGuard`](struct.FileLockGuard.html)
-    /// exits scope.
-    fn try_lock_exclusive_guard(&mut self) -> FileLockResult<Self>;
+    /// then unlock when the returned `FileLockGuard` exits scope.
+    fn try_lock_exclusive_guard(&mut self) -> Result<FileLockGuard<Self>>;
 }
 
 impl<T: FileExt> FileLock for T {
 
-    fn lock_shared_guard(&mut self) -> FileLockResult<Self> {
+    fn lock_shared_guard(&mut self) -> Result<FileLockGuard<Self>> {
         self.lock_shared()?;
         Ok(FileLockGuard::new(self))
     }
 
-    fn lock_exclusive_guard(&mut self) -> FileLockResult<Self> {
+    fn lock_exclusive_guard(&mut self) -> Result<FileLockGuard<Self>> {
         self.lock_exclusive()?;
         Ok(FileLockGuard::new(self))
     }
 
-    fn try_lock_shared_guard(&mut self) -> FileLockResult<Self> {
+    fn try_lock_shared_guard(&mut self) -> Result<FileLockGuard<Self>> {
         self.try_lock_shared()?;
         Ok(FileLockGuard::new(self))
     }
 
-    fn try_lock_exclusive_guard(&mut self) -> FileLockResult<Self> {
+    fn try_lock_exclusive_guard(&mut self) -> Result<FileLockGuard<Self>> {
         self.try_lock_exclusive()?;
         Ok(FileLockGuard::new(self))
     }

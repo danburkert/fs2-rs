@@ -20,7 +20,6 @@ use windows as sys;
 mod guard;
 pub use guard::{
     FileLock,
-    FileLockResult,
     FileLockGuard
 };
 
