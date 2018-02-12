@@ -5,33 +5,15 @@ use std::io;
 use std::ops::{Deref,DerefMut};
 
 /// An RAII implementation of a "scoped lock" of a file.
-/// When this structure is dropped (falls out of scope), the file will be unlocked.
+/// This unlocks the file when dropped (falls out of scope), without closing the file.
 ///
-/// This structure is created by the [`lock_shared_guard`], [`lock_exclusive_guard`], [`try_lock_shared_guard`], and [`try_lock_exclusive_guard`] methods on [`FileExt`].
+/// This structure is created by the [`lock_shared_guard`], [`lock_exclusive_guard`], [`try_lock_shared_guard`], and [`try_lock_exclusive_guard`] methods on [`FileLock`].
 ///
-/// # Examples
-///
-/// ```
-/// use fs2::FileExt;
-/// use fs2::FileLock;
-/// use std::io::Write;
-///
-/// fn exclusive_access(file: &mut std::fs::File) {
-///     if let Ok(mut locked) = file.try_lock_exclusive_guard() {
-///
-///         // exclusive operation, synchronized among processes
-///         write!(*locked, "hello").unwrap();
-///
-///         // file is unlocked when "locked" guard leaves scope
-///     }
-/// }
-/// ```
-///
-/// [`lock_shared_guard`]: trait.FileExt.html#tymethod.lock_shared_guard
-/// [`lock_exclusive_guard`]: trait.FileExt.html#tymethod.lock_exclusive_guard
-/// [`try_lock_shared_guard`]: trait.FileExt.html#tymethod.try_lock_shared_guard
-/// [`try_lock_exclusive_guard`]: trait.FileExt.html#tymethod.try_lock_exclusive_guard
-/// [`FileExt`]: trait.FileExt.html
+/// [`lock_shared_guard`]: trait.FileLock.html#tymethod.lock_shared_guard
+/// [`lock_exclusive_guard`]: trait.FileLock.html#tymethod.lock_exclusive_guard
+/// [`try_lock_shared_guard`]: trait.FileLock.html#tymethod.try_lock_shared_guard
+/// [`try_lock_exclusive_guard`]: trait.FileLock.html#tymethod.try_lock_exclusive_guard
+/// [`FileLock`]: trait.FileLock.html
 #[derive(Debug)]
 pub struct FileLockGuard<'a, T: FileExt + ?Sized + 'a> {
     file: &'a mut T,
@@ -79,22 +61,44 @@ impl<'a, T: FileExt + ?Sized + 'a> Drop for FileLockGuard<'a, T> {
 
 pub type FileLockResult<'a, T> = Result<FileLockGuard<'a, T>, io::Error>;
 
+/// Extension trait for `FileExt` which provides guarded locking.
+///
+/// # Examples
+///
+/// ```
+/// use fs2::FileLock;
+/// use std::io::Write;
+///
+/// fn exclusive_access(file: &mut std::fs::File) {
+///     if let Ok(mut locked) = file.try_lock_exclusive_guard() {
+///
+///         // exclusive operation, synchronized among processes
+///         write!(*locked, "hello").unwrap();
+///
+///         // file is unlocked when "locked" guard leaves scope
+///     }
+/// }
+/// ```
 pub trait FileLock: FileExt {
 
-    /// [`lock_shared`](#tymethod.lock_shared),
-    /// then unlock when the returned `FileLockGuard` exits scope.
+    /// [`lock_shared`](trait.FileExt.html#tymethod.lock_shared),
+    /// then unlock when the returned [`FileLockGuard`](struct.FileLockGuard.html)
+    /// exits scope.
     fn lock_shared_guard(&mut self) -> FileLockResult<Self>;
 
-    /// [`lock_exclusive`](#tymethod.lock_exclusive),
-    /// then unlock when the returned `FileLockGuard` exits scope.
+    /// [`lock_exclusive`](trait.FileExt.html#tymethod.lock_exclusive),
+    /// then unlock when the returned [`FileLockGuard`](struct.FileLockGuard.html)
+    /// exits scope.
     fn lock_exclusive_guard(&mut self) -> FileLockResult<Self>;
 
-    /// [`try_lock_shared`](#tymethod.try_lock_shared),
-    /// then unlock when the returned `FileLockGuard` exits scope.
+    /// [`try_lock_shared`](trait.FileExt.html#tymethod.try_lock_shared),
+    /// then unlock when the returned [`FileLockGuard`](struct.FileLockGuard.html)
+    /// exits scope.
     fn try_lock_shared_guard(&mut self) -> FileLockResult<Self>;
 
-    /// [`try_lock_exclusive`](#tymethod.try_lock_exclusive),
-    /// then unlock when the returned `FileLockGuard` exits scope.
+    /// [`try_lock_exclusive`](trait.FileExt.html#tymethod.try_lock_exclusive),
+    /// then unlock when the returned [`FileLockGuard`](struct.FileLockGuard.html)
+    /// exits scope.
     fn try_lock_exclusive_guard(&mut self) -> FileLockResult<Self>;
 }
 
