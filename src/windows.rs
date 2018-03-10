@@ -260,7 +260,7 @@ mod test {
     }
 
     /// A file handle's locks will not be released until the original handle and all of its
-    /// duplicates have been closed. This on really smells like a bug in Windows.
+    /// duplicates have been closed. This one really smells like a bug in Windows.
     #[test]
     fn lock_duplicate_cleanup() {
         let tempdir = tempdir::TempDir::new("fs2").unwrap();
