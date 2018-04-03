@@ -47,7 +47,7 @@ pub fn lock_error() -> Error {
     Error::from_raw_os_error(libc::EWOULDBLOCK)
 }
 
-#[cfg(not(target_os = "solaris"))]
+#[cfg(all(not(target_os = "solaris"), not(target_os = "fuchsia")))]
 fn flock(file: &File, flag: libc::c_int) -> Result<()> {
     let ret = unsafe { libc::flock(file.as_raw_fd(), flag) };
     if ret < 0 { Err(Error::last_os_error()) } else { Ok(()) }
@@ -91,6 +91,11 @@ fn flock(file: &File, flag: libc::c_int) -> Result<()> {
     }
 }
 
+#[cfg(target_os = "fuchsia")]
+fn flock(file: &File, flag: libc::c_int) -> Result<()> {
+    Ok(())
+}
+
 pub fn allocated_size(file: &File) -> Result<u64> {
     file.metadata().map(|m| m.blocks() as u64 * 512)
 }
@@ -99,7 +104,8 @@ pub fn allocated_size(file: &File) -> Result<u64> {
           target_os = "freebsd",
           target_os = "android",
           target_os = "emscripten",
-          target_os = "nacl"))]
+          target_os = "nacl",
+          target_os = "fuchsia"))]
 pub fn allocate(file: &File, len: u64) -> Result<()> {
     let ret = unsafe { libc::posix_fallocate(file.as_raw_fd(), 0, len as libc::off_t) };
     if ret == 0 { Ok(()) } else { Err(Error::last_os_error()) }
