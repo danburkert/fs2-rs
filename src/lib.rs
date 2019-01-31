@@ -318,6 +318,23 @@ mod test {
         assert_eq!(blksize + 1, file.metadata().unwrap().len());
     }
 
+    /// Tests large file allocation
+    #[test]
+    fn large_file_allocation() {
+        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let path = tempdir.path().join("fs2");
+        let file = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
+
+        // New files are created with no allocated size.
+        assert_eq!(0, file.metadata().unwrap().len());
+
+        // Allocate space for a 2Gb file to check for 64 bit size support.
+
+        file.allocate(0x80000000).unwrap();
+
+        assert_eq!(0x80000000, file.metadata().unwrap().len());
+    }
+
     /// Checks filesystem space methods.
     #[test]
     fn filesystem_space() {
