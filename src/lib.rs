@@ -12,9 +12,9 @@ mod redox;
 #[cfg(target_os = "redox")]
 use redox as sys;
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "redox")))]
 mod unix;
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "redox")))]
 use unix as sys;
 
 #[cfg(windows)]

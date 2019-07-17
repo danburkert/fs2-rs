@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{Error, ErrorKind, Result};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::MetadataExt;
-use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::path::Path;
 
 use FsStats;
@@ -14,8 +14,8 @@ fn cvt(result: syscall::Result<usize>) -> Result<usize> {
 }
 
 pub fn duplicate(file: &File) -> Result<File> {
-    let fd = cvt(syscall::dup(file.as_raw_fd(), &[]))?;
-    Ok(unsafe { File::from_raw_fd(fd) })
+    let fd = cvt(syscall::dup(file.as_raw_fd() as usize, &[]))?;
+    Ok(unsafe { File::from_raw_fd(fd as RawFd) })
 }
 
 pub fn lock_shared(file: &File) -> Result<()> {
