@@ -7,9 +7,14 @@
 #[cfg(windows)]
 extern crate winapi;
 
-#[cfg(unix)]
+#[cfg(target_os = "redox")]
+mod redox;
+#[cfg(target_os = "redox")]
+use redox as sys;
+
+#[cfg(all(unix, not(target_os = "redox")))]
 mod unix;
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "redox")))]
 use unix as sys;
 
 #[cfg(windows)]
