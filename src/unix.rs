@@ -95,7 +95,7 @@ pub fn allocated_size(file: &File) -> Result<u64> {
     file.metadata().map(|m| m.blocks() as u64 * 512)
 }
 
-#[cfg(any(target_os = "linux",
+#[cfg(any(all(target_os = "linux", not(target_env = "uclibc")),
           target_os = "freebsd",
           target_os = "android",
           target_os = "emscripten",
@@ -136,7 +136,8 @@ pub fn allocate(file: &File, len: u64) -> Result<()> {
     }
 }
 
-#[cfg(any(target_os = "openbsd",
+#[cfg(any(all(target_os = "linux", target_env = "uclibc"),
+          target_os = "openbsd",
           target_os = "netbsd",
           target_os = "dragonfly",
           target_os = "solaris",
