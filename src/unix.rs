@@ -140,7 +140,8 @@ pub fn allocate(file: &File, len: u64) -> Result<()> {
           target_os = "netbsd",
           target_os = "dragonfly",
           target_os = "solaris",
-          target_os = "haiku"))]
+          target_os = "haiku",
+          target_os = "redox"))]
 pub fn allocate(file: &File, len: u64) -> Result<()> {
     // No file allocation API available, just set the length if necessary.
     if len > try!(file.metadata()).len() as u64 {
