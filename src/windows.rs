@@ -157,7 +157,7 @@ pub fn statvfs(path: &Path) -> Result<FsStats> {
 #[cfg(test)]
 mod test {
 
-    extern crate tempdir;
+    extern crate tempfile;
 
     use std::fs;
     use std::os::windows::io::AsRawHandle;
@@ -167,7 +167,7 @@ mod test {
     /// The duplicate method returns a file with a new file handle.
     #[test]
     fn duplicate_new_handle() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
         let file2 = file1.duplicate().unwrap();
@@ -177,7 +177,7 @@ mod test {
     /// A duplicated file handle does not have access to the original handle's locks.
     #[test]
     fn lock_duplicate_handle_independence() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
         let file2 = file1.duplicate().unwrap();
@@ -196,7 +196,7 @@ mod test {
     /// shared locked.
     #[test]
     fn lock_non_reentrant() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
@@ -216,7 +216,7 @@ mod test {
     /// be unlocked independently.
     #[test]
     fn lock_layering() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
@@ -245,7 +245,7 @@ mod test {
     /// A file handle with multiple open locks will have all locks closed on drop.
     #[test]
     fn lock_layering_cleanup() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
         let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
@@ -263,7 +263,7 @@ mod test {
     /// duplicates have been closed. This on really smells like a bug in Windows.
     #[test]
     fn lock_duplicate_cleanup() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
         let file2 = file1.duplicate().unwrap();

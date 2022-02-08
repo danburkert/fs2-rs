@@ -199,7 +199,7 @@ pub fn allocation_granularity<P>(path: P) -> Result<u64> where P: AsRef<Path> {
 #[cfg(test)]
 mod test {
 
-    extern crate tempdir;
+    extern crate tempfile;
     extern crate test;
 
     use std::fs;
@@ -209,7 +209,7 @@ mod test {
     /// Tests file duplication.
     #[test]
     fn duplicate() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let mut file1 =
             fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
@@ -234,7 +234,7 @@ mod test {
     /// Tests shared file lock operations.
     #[test]
     fn lock_shared() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
         let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
@@ -257,7 +257,7 @@ mod test {
     /// Tests exclusive file lock operations.
     #[test]
     fn lock_exclusive() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
         let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
@@ -277,7 +277,7 @@ mod test {
     /// Tests that a lock is released after the file that owns it is dropped.
     #[test]
     fn lock_cleanup() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
         let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
@@ -294,7 +294,7 @@ mod test {
     /// Tests file allocation.
     #[test]
     fn allocate() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
         let blksize = allocation_granularity(&path).unwrap();
@@ -321,7 +321,7 @@ mod test {
     /// Checks filesystem space methods.
     #[test]
     fn filesystem_space() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let total_space = total_space(&tempdir.path()).unwrap();
         let free_space = free_space(&tempdir.path()).unwrap();
         let available_space = available_space(&tempdir.path()).unwrap();
@@ -335,7 +335,7 @@ mod test {
     /// for comparing against the truncate and allocate benchmarks.
     #[bench]
     fn bench_file_create(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("file");
 
         b.iter(|| {
@@ -353,7 +353,7 @@ mod test {
     #[bench]
     fn bench_file_truncate(b: &mut test::Bencher) {
         let size = 32 * 1024 * 1024;
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("file");
 
         b.iter(|| {
@@ -372,7 +372,7 @@ mod test {
     #[bench]
     fn bench_file_allocate(b: &mut test::Bencher) {
         let size = 32 * 1024 * 1024;
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("file");
 
         b.iter(|| {
@@ -391,7 +391,7 @@ mod test {
     #[bench]
     fn bench_allocated_size(b: &mut test::Bencher) {
         let size = 32 * 1024 * 1024;
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("file");
         let file = fs::OpenOptions::new()
                                    .read(true)
@@ -409,7 +409,7 @@ mod test {
     /// Benchmarks duplicating a file descriptor or handle.
     #[bench]
     fn bench_duplicate(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
@@ -419,7 +419,7 @@ mod test {
     /// Benchmarks locking and unlocking a file lock.
     #[bench]
     fn bench_lock_unlock(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).unwrap();
 
@@ -432,7 +432,7 @@ mod test {
     /// Benchmarks the free space method.
     #[bench]
     fn bench_free_space(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         b.iter(|| {
             test::black_box(free_space(&tempdir.path()).unwrap());
         });
@@ -441,7 +441,7 @@ mod test {
     /// Benchmarks the available space method.
     #[bench]
     fn bench_available_space(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         b.iter(|| {
             test::black_box(available_space(&tempdir.path()).unwrap());
         });
@@ -450,7 +450,7 @@ mod test {
     /// Benchmarks the total space method.
     #[bench]
     fn bench_total_space(b: &mut test::Bencher) {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         b.iter(|| {
             test::black_box(total_space(&tempdir.path()).unwrap());
         });
