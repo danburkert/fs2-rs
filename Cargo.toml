@@ -20,4 +20,4 @@ libc = "0.2.30"
 winapi = { version = "0.3", features = ["handleapi", "processthreadsapi", "winerror", "fileapi", "winbase", "std"] }
 
 [dev-dependencies]
-tempdir = "0.3"
+tempfile = "3"

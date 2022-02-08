@@ -174,7 +174,7 @@ pub fn statvfs(path: &Path) -> Result<FsStats> {
 
 #[cfg(test)]
 mod test {
-    extern crate tempdir;
+    extern crate tempfile;
     extern crate libc;
 
     use std::fs::{self, File};
@@ -185,7 +185,7 @@ mod test {
     /// The duplicate method returns a file with a new file descriptor.
     #[test]
     fn duplicate_new_fd() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
         let file2 = file1.duplicate().unwrap();
@@ -200,7 +200,7 @@ mod test {
             unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETFL, 0) }
         }
 
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
         let file2 = file1.duplicate().unwrap();
@@ -212,7 +212,7 @@ mod test {
     /// held on the file descriptor.
     #[test]
     fn lock_replace() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
         let file2 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
@@ -232,7 +232,7 @@ mod test {
     /// Tests that locks are shared among duplicated file descriptors.
     #[test]
     fn lock_duplicate() {
-        let tempdir = tempdir::TempDir::new("fs2").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let path = tempdir.path().join("fs2");
         let file1 = fs::OpenOptions::new().write(true).create(true).open(&path).unwrap();
         let file2 = file1.duplicate().unwrap();
