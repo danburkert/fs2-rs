@@ -105,7 +105,7 @@ pub fn allocate(file: &File, len: u64) -> Result<()> {
     if ret == 0 { Ok(()) } else { Err(Error::last_os_error()) }
 }
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos"))]
 pub fn allocate(file: &File, len: u64) -> Result<()> {
     let stat = try!(file.metadata());
 
