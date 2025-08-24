@@ -108,7 +108,6 @@ pub fn allocated_size(file: &File) -> Result<u64> {
     target_os = "freebsd",
     target_os = "android",
     target_os = "emscripten",
-    target_os = "nacl",
     target_os = "solaris",
     target_os = "illumos"
 ))]
