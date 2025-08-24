@@ -99,7 +99,9 @@ pub fn allocated_size(file: &File) -> Result<u64> {
           target_os = "freebsd",
           target_os = "android",
           target_os = "emscripten",
-          target_os = "nacl"))]
+          target_os = "nacl",
+          target_os = "solaris",
+          target_os = "illumos"))]
 pub fn allocate(file: &File, len: u64) -> Result<()> {
     let ret = unsafe { libc::posix_fallocate(file.as_raw_fd(), 0, len as libc::off_t) };
     if ret == 0 { Ok(()) } else { Err(Error::last_os_error()) }
